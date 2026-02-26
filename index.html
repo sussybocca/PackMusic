@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>PackMusic · Immersive Player</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html, body {
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      background: #0a0c14;
+    }
+
+    body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      color: #eef2ff;
+      position: relative;
+    }
+
+    /* Animated background */
+    #bg-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      background: radial-gradient(circle at 30% 40%, #1a1f35, #0b0e1a);
+    }
+
+    /* Main content */
+    .player-container {
+      position: relative;
+      z-index: 10;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      background: rgba(10, 12, 20, 0.6);
+    }
+
+    /* Header */
+    .header {
+      padding: 2rem 3rem 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .header h1 {
+      font-size: 2.8rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, #b8bfff, #a678ff);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      letter-spacing: 2px;
+    }
+
+    .header .sub {
+      color: #7a84b0;
+      font-size: 1rem;
+      margin-left: auto;
+    }
+
+    /* Main area: cover + controls + playlist */
+    .main-area {
+      flex: 1;
+      display: flex;
+      padding: 1rem 3rem 3rem;
+      gap: 3rem;
+      min-height: 0;
+    }
+
+    /* Left side – cover and visualizer */
+    .cover-area {
+      flex: 2;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .cover-wrapper {
+      position: relative;
+      width: 100%;
+      max-width: 500px;
+      aspect-ratio: 1 / 1;
+      border-radius: 40px;
+      overflow: hidden;
+      box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 2px rgba(255, 255, 255, 0.05) inset;
+    }
+
+    #album-art {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      background: #2a2f4a;
+      transition: transform 0.3s ease;
+    }
+
+    .cover-wrapper:hover #album-art {
+      transform: scale(1.02);
+    }
+
+    /* Visualizer canvas */
+    #visualizer {
+      width: 100%;
+      height: 120px;
+      border-radius: 60px;
+      background: rgba(0, 0, 0, 0.3);
+      backdrop-filter: blur(10px);
+      box-shadow: 0 10px 30px -10px #00000080;
+    }
+
+    /* Center controls */
+    .controls-area {
+      flex: 1.2;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 2rem;
+      background: rgba(20, 25, 45, 0.4);
+      backdrop-filter: blur(16px);
+      border-radius: 60px;
+      padding: 2.5rem 2rem;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .now-playing {
+      text-align: center;
+    }
+
+    #track-title {
+      font-size: 2rem;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    #track-artist {
+      font-size: 1.1rem;
+      color: #b1b9d9;
+    }
+
+    /* Progress */
+    .progress-area {
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .progress-bar {
+      width: 100%;
+      height: 8px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 4px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #a678ff, #d2a0ff);
+      border-radius: 4px;
+      box-shadow: 0 0 20px #a678ff;
+      transition: width 0.02s linear;
+    }
+
+    .time-display {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9rem;
+      color: #b1b9d9;
+    }
+
+    /* Transport buttons */
+    .transport {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .transport-btn {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.8rem;
+      cursor: pointer;
+      transition: all 0.2s;
+      color: #eef2ff;
+    }
+
+    .transport-btn:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: #a678ff;
+      transform: scale(1.1);
+      box-shadow: 0 0 20px #a678ff80;
+    }
+
+    #play-pause {
+      width: 80px;
+      height: 80px;
+      font-size: 2.4rem;
+      background: #4a40bf;
+      border-color: #a88eff;
+    }
+
+    /* Volume and effects */
+    .extra-controls {
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .volume-row, .effect-row {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+    }
+
+    .volume-row span, .effect-row span {
+      width: 60px;
+      font-size: 0.9rem;
+      color: #b1b9d9;
+    }
+
+    input[type=range] {
+      flex: 1;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      -webkit-appearance: none;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #a678ff;
+      cursor: pointer;
+      box-shadow: 0 0 10px #a678ff;
+    }
+
+    #effect-select {
+      background: rgba(20, 25, 45, 0.8);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 40px;
+      padding: 0.5rem 1rem;
+      color: white;
+      font-size: 0.9rem;
+      cursor: pointer;
+    }
+
+    /* Playlist sidebar */
+    .playlist-area {
+      flex: 0.8;
+      background: rgba(20, 25, 45, 0.4);
+      backdrop-filter: blur(16px);
+      border-radius: 40px;
+      padding: 1.5rem 1rem;
+      border: 1px solid rgba(255,255,255,0.05);
+      overflow-y: auto;
+    }
+
+    .playlist-area h3 {
+      font-size: 1.2rem;
+      margin-bottom: 1rem;
+      padding-left: 0.5rem;
+      color: #b1b9d9;
+      letter-spacing: 1px;
+    }
+
+    #playlist {
+      list-style: none;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+    }
+
+    .playlist-item {
+      padding: 0.8rem 1rem;
+      border-radius: 30px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.03);
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .playlist-item:hover {
+      background: rgba(255,255,255,0.08);
+      border-color: #a678ff80;
+    }
+
+    .playlist-item.active {
+      background: #4a40bf40;
+      border-color: #a678ff;
+      box-shadow: 0 0 15px #a678ff40;
+    }
+
+    /* Responsive */
+    @media (max-width: 1000px) {
+      .main-area {
+        flex-direction: column;
+        padding: 1rem;
+      }
+      .cover-area { max-width: 100%; }
+      .playlist-area { max-height: 200px; }
+    }
+  </style>
+</head>
+<body>
+
+  <canvas id="bg-canvas"></canvas>
+
+  <div class="player-container">
+    <div class="header">
+      <h1>♢ PACKMUSIC</h1>
+      <div class="sub">immersive audio</div>
+    </div>
+
+    <div class="main-area">
+      <!-- Left: cover + visualizer -->
+      <div class="cover-area">
+        <div class="cover-wrapper">
+          <img id="album-art" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%232a2f4a'/%3E%3Ctext x='10' y='55' fill='%23ffffff80' font-size='12'%3EMUSIC%3C/text%3E%3C/svg%3E" alt="album art">
+        </div>
+        <canvas id="visualizer" width="600" height="120"></canvas>
+      </div>
+
+      <!-- Center: controls -->
+      <div class="controls-area">
+        <div class="now-playing">
+          <div id="track-title">Select a song</div>
+          <div id="track-artist">from the playlist</div>
+        </div>
+
+        <div class="progress-area">
+          <div class="progress-bar" id="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <div class="time-display">
+            <span id="time-current">0:00</span>
+            <span id="time-duration">0:00</span>
+          </div>
+        </div>
+
+        <div class="transport">
+          <div class="transport-btn" id="prev">⏮</div>
+          <div class="transport-btn" id="play-pause">▶</div>
+          <div class="transport-btn" id="next">⏭</div>
+        </div>
+
+        <div class="extra-controls">
+          <div class="volume-row">
+            <span>Volume</span>
+            <input type="range" id="volume" min="0" max="100" value="80">
+          </div>
+          <div class="effect-row">
+            <span>Reverb</span>
+            <select id="effect-select">
+              <option value="0">None</option>
+              <option value="1" selected>Hall</option>
+              <option value="2">Cave</option>
+              <option value="3">Dream</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right: playlist -->
+      <div class="playlist-area">
+        <h3>PLAYLIST · AUDIO</h3>
+        <ul id="playlist">
+          <li class="playlist-item">Loading...</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    (function() {
+      // ---------- Web Audio Setup ----------
+      const AudioContext = window.AudioContext || window.webkitAudioContext;
+      const audioCtx = new AudioContext();
+
+      // Resume on user interaction
+      document.body.addEventListener('click', () => {
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+      }, { once: true });
+
+      // Audio element
+      const audio = document.getElementById('lobby-music') || (() => {
+        const a = new Audio();
+        a.crossOrigin = 'anonymous';
+        a.id = 'lobby-music';
+        document.body.appendChild(a);
+        return a;
+      })();
+      audio.loop = false; // we'll handle next manually
+
+      // Create Web Audio graph
+      const source = audioCtx.createMediaElementSource(audio);
+      const gainNode = audioCtx.createGain();
+      const reverbNode = audioCtx.createConvolver();
+      const reverbGain = audioCtx.createGain();
+      const dryGain = audioCtx.createGain();
+      dryGain.gain.value = 0.5; // mix
+      const wetGain = audioCtx.createGain();
+      wetGain.gain.value = 0.5;
+
+      // Simple impulse responses
+      function createImpulse(duration = 2, decay = 2) {
+        const sampleRate = audioCtx.sampleRate;
+        const length = sampleRate * duration;
+        const impulse = audioCtx.createBuffer(2, length, sampleRate);
+        for (let ch = 0; ch < 2; ch++) {
+          const data = impulse.getChannelData(ch);
+          for (let i = 0; i < length; i++) {
+            data[i] = (Math.random() * 2 - 1) * Math.exp(-i / (sampleRate * decay));
+          }
+        }
+        return impulse;
+      }
+
+      const impulses = {
+        '1': createImpulse(2.0, 0.8),   // hall
+        '2': createImpulse(3.5, 1.5),   // cave
+        '3': createImpulse(5.0, 2.5)    // dream
+      };
+
+      // Connect graph
+      source.connect(dryGain);
+      dryGain.connect(gainNode);
+      source.connect(reverbNode);
+      reverbNode.connect(wetGain);
+      wetGain.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      // Initial reverb off
+      reverbNode.buffer = impulses['1'];
+      wetGain.gain.value = 0;
+
+      // Visualizer analyser
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      source.connect(analyser); // also connect to analyser (before effects)
+
+      // ---------- UI Elements ----------
+      const playPauseBtn = document.getElementById('play-pause');
+      const prevBtn = document.getElementById('prev');
+      const nextBtn = document.getElementById('next');
+      const volumeSlider = document.getElementById('volume');
+      const effectSelect = document.getElementById('effect-select');
+      const trackTitle = document.getElementById('track-title');
+      const trackArtist = document.getElementById('track-artist');
+      const progressFill = document.getElementById('progress-fill');
+      const progressBar = document.getElementById('progress-bar');
+      const timeCurrent = document.getElementById('time-current');
+      const timeDuration = document.getElementById('time-duration');
+      const playlistEl = document.getElementById('playlist');
+      const albumArt = document.getElementById('album-art');
+      const visualizerCanvas = document.getElementById('visualizer');
+      const ctx = visualizerCanvas.getContext('2d');
+
+      // State
+      let playlist = [];
+      let currentIndex = 0;
+      let isPlaying = false;
+
+      // Format time
+      function formatTime(sec) {
+        if (isNaN(sec)) return '0:00';
+        const m = Math.floor(sec / 60);
+        const s = Math.floor(sec % 60);
+        return `${m}:${s < 10 ? '0' : ''}${s}`;
+      }
+
+      // Update UI with track info
+      function updateTrackInfo() {
+        if (playlist[currentIndex]) {
+          trackTitle.textContent = playlist[currentIndex].name;
+          trackArtist.textContent = 'PackArcade';
+          // Random "album art" based on track name
+          albumArt.src = `https://via.placeholder.com/500/2a2f4a/a678ff?text=${encodeURIComponent(playlist[currentIndex].name.charAt(0))}`;
+        } else {
+          trackTitle.textContent = 'Select a song';
+          trackArtist.textContent = '';
+        }
+      }
+
+      // Load and play track
+      function loadTrack(index) {
+        if (index < 0) index = playlist.length - 1;
+        if (index >= playlist.length) index = 0;
+        currentIndex = index;
+        const track = playlist[currentIndex];
+        if (!track) return;
+        audio.src = track.url;
+        audio.load();
+        updateTrackInfo();
+        if (isPlaying) {
+          audio.play().catch(e => console.warn('Play failed', e));
+        }
+        // Highlight playlist item
+        document.querySelectorAll('.playlist-item').forEach((li, i) => {
+          if (i === currentIndex) li.classList.add('active');
+          else li.classList.remove('active');
+        });
+      }
+
+      // Fetch playlist from GitHub
+      async function loadPlaylist() {
+        const apiUrl = 'https://api.github.com/repos/sussybocca/PackArcade/contents/public/audio';
+        try {
+          const res = await fetch(apiUrl);
+          if (!res.ok) throw new Error('GitHub fetch failed');
+          const data = await res.json();
+          const mp3Files = data.filter(f => f.name.toLowerCase().endsWith('.mp3'));
+          playlist = mp3Files.map(f => ({
+            name: f.name.replace(/\.mp3$/i, ''),
+            url: `https://raw.githubusercontent.com/sussybocca/PackArcade/main/public/audio/${encodeURIComponent(f.name)}`
+          }));
+          // Render playlist
+          playlistEl.innerHTML = '';
+          playlist.forEach((track, idx) => {
+            const li = document.createElement('li');
+            li.className = 'playlist-item';
+            li.textContent = track.name;
+            li.addEventListener('click', () => {
+              loadTrack(idx);
+              if (!isPlaying) {
+                playPauseBtn.textContent = '⏸';
+                isPlaying = true;
+                audio.play().catch(e => console.warn(e));
+              }
+            });
+            playlistEl.appendChild(li);
+          });
+          if (playlist.length > 0) {
+            loadTrack(0);
+          }
+        } catch (e) {
+          console.error('Failed to load playlist', e);
+          playlistEl.innerHTML = '<li class="playlist-item">Error loading songs</li>';
+        }
+      }
+
+      // Play/Pause
+      playPauseBtn.addEventListener('click', () => {
+        if (!playlist.length) return;
+        if (isPlaying) {
+          audio.pause();
+          playPauseBtn.textContent = '▶';
+        } else {
+          audio.play().catch(e => console.warn(e));
+          playPauseBtn.textContent = '⏸';
+        }
+        isPlaying = !isPlaying;
+      });
+
+      // Next/Prev
+      nextBtn.addEventListener('click', () => {
+        if (!playlist.length) return;
+        loadTrack(currentIndex + 1);
+        if (isPlaying) audio.play().catch(e => console.warn(e));
+      });
+      prevBtn.addEventListener('click', () => {
+        if (!playlist.length) return;
+        loadTrack(currentIndex - 1);
+        if (isPlaying) audio.play().catch(e => console.warn(e));
+      });
+
+      // Volume
+      volumeSlider.addEventListener('input', (e) => {
+        gainNode.gain.value = e.target.value / 100;
+      });
+      gainNode.gain.value = 0.8;
+
+      // Reverb effect
+      effectSelect.addEventListener('change', (e) => {
+        const val = e.target.value;
+        if (val === '0') {
+          wetGain.gain.value = 0;
+          dryGain.gain.value = 1;
+        } else {
+          reverbNode.buffer = impulses[val];
+          wetGain.gain.value = 0.6;
+          dryGain.gain.value = 0.5;
+        }
+      });
+
+      // Progress bar updates
+      audio.addEventListener('timeupdate', () => {
+        if (audio.duration) {
+          const percent = (audio.currentTime / audio.duration) * 100;
+          progressFill.style.width = percent + '%';
+          timeCurrent.textContent = formatTime(audio.currentTime);
+          timeDuration.textContent = formatTime(audio.duration);
+        }
+      });
+
+      // Seek
+      progressBar.addEventListener('click', (e) => {
+        const rect = progressBar.getBoundingClientRect();
+        const clickX = e.clientX - rect.left;
+        const width = rect.width;
+        const seekTo = (clickX / width) * audio.duration;
+        audio.currentTime = seekTo;
+      });
+
+      // Auto next
+      audio.addEventListener('ended', () => {
+        loadTrack(currentIndex + 1);
+        if (isPlaying) audio.play().catch(e => console.warn(e));
+      });
+
+      // Visualizer
+      function draw() {
+        requestAnimationFrame(draw);
+        if (!analyser) return;
+        analyser.getByteFrequencyData(dataArray);
+        ctx.clearRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
+        const barWidth = (visualizerCanvas.width / bufferLength) * 2.5;
+        let x = 0;
+        for (let i = 0; i < bufferLength; i++) {
+          const barHeight = dataArray[i] / 2;
+          ctx.fillStyle = `rgb(${100 + dataArray[i]}, 120, 255)`;
+          ctx.fillRect(x, visualizerCanvas.height - barHeight, barWidth, barHeight);
+          x += barWidth + 1;
+        }
+      }
+      draw();
+
+      // Background canvas animation (particles)
+      const bgCanvas = document.getElementById('bg-canvas');
+      const bgCtx = bgCanvas.getContext('2d');
+      let width, height;
+      function resizeBg() {
+        width = window.innerWidth;
+        height = window.innerHeight;
+        bgCanvas.width = width;
+        bgCanvas.height = height;
+      }
+      window.addEventListener('resize', resizeBg);
+      resizeBg();
+
+      const particles = [];
+      for (let i = 0; i < 80; i++) {
+        particles.push({
+          x: Math.random() * width,
+          y: Math.random() * height,
+          vx: (Math.random() - 0.5) * 0.4,
+          vy: (Math.random() - 0.5) * 0.2,
+          radius: Math.random() * 2 + 1,
+        });
+      }
+
+      function drawBg() {
+        requestAnimationFrame(drawBg);
+        bgCtx.clearRect(0, 0, width, height);
+        bgCtx.fillStyle = '#0a0c14';
+        bgCtx.fillRect(0, 0, width, height);
+        bgCtx.globalAlpha = 0.6;
+        for (let p of particles) {
+          p.x += p.vx;
+          p.y += p.vy;
+          if (p.x < 0 || p.x > width) p.vx *= -1;
+          if (p.y < 0 || p.y > height) p.vy *= -1;
+          bgCtx.beginPath();
+          bgCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
+          bgCtx.fillStyle = `rgba(166, 120, 255, ${0.3 + Math.sin(Date.now() * 0.001 + p.x) * 0.1})`;
+          bgCtx.fill();
+        }
+        bgCtx.globalAlpha = 1;
+      }
+      drawBg();
+
+      // Initialize
+      loadPlaylist();
+    })();
+  </script>
+</body>
+</html>
