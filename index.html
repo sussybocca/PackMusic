@@ -2,437 +2,373 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>PackMusic · Immersive Player</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>PackMusic · Mindscape</title>
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
-
-    html, body {
-      height: 100%;
-      width: 100%;
-      overflow: hidden;
-      background: #0a0c14;
-    }
-
     body {
-      font-family: 'Inter', system-ui, -apple-system, sans-serif;
-      color: #eef2ff;
-      position: relative;
+      margin: 0;
+      overflow: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      color: white;
     }
-
-    /* Animated background */
-    #bg-canvas {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 0;
-      background: radial-gradient(circle at 30% 40%, #1a1f35, #0b0e1a);
+    #info {
+      position: absolute;
+      top: 20px;
+      left: 20px;
+      z-index: 20;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(10px);
+      padding: 12px 24px;
+      border-radius: 40px;
+      border: 1px solid rgba(255,255,255,0.1);
+      pointer-events: none;
     }
-
-    /* Main content */
-    .player-container {
-      position: relative;
-      z-index: 10;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      backdrop-filter: blur(20px);
-      -webkit-backdrop-filter: blur(20px);
-      background: rgba(10, 12, 20, 0.6);
-    }
-
-    /* Header */
-    .header {
-      padding: 2rem 3rem 1rem;
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .header h1 {
-      font-size: 2.8rem;
-      font-weight: 600;
-      background: linear-gradient(135deg, #b8bfff, #a678ff);
+    #info h1 {
+      font-size: 1.8rem;
+      font-weight: 300;
+      letter-spacing: 4px;
+      margin: 0;
+      background: linear-gradient(135deg, #fff, #a678ff);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
-      letter-spacing: 2px;
     }
-
-    .header .sub {
-      color: #7a84b0;
-      font-size: 1rem;
-      margin-left: auto;
-    }
-
-    /* Main area: cover + controls + playlist */
-    .main-area {
-      flex: 1;
+    #controls {
+      position: absolute;
+      bottom: 40px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 30;
       display: flex;
-      padding: 1rem 3rem 3rem;
-      gap: 3rem;
-      min-height: 0;
+      gap: 20px;
+      background: rgba(20,25,45,0.7);
+      backdrop-filter: blur(20px);
+      padding: 20px 40px;
+      border-radius: 80px;
+      border: 1px solid rgba(255,255,255,0.1);
+      box-shadow: 0 20px 40px rgba(0,0,0,0.5);
     }
-
-    /* Left side – cover and visualizer */
-    .cover-area {
-      flex: 2;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      align-items: center;
-      gap: 2rem;
-    }
-
-    .cover-wrapper {
-      position: relative;
-      width: 100%;
-      max-width: 500px;
-      aspect-ratio: 1 / 1;
-      border-radius: 40px;
-      overflow: hidden;
-      box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8), 0 0 0 2px rgba(255, 255, 255, 0.05) inset;
-    }
-
-    #album-art {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      background: #2a2f4a;
-      transition: transform 0.3s ease;
-    }
-
-    .cover-wrapper:hover #album-art {
-      transform: scale(1.02);
-    }
-
-    /* Visualizer canvas */
-    #visualizer {
-      width: 100%;
-      height: 120px;
-      border-radius: 60px;
-      background: rgba(0, 0, 0, 0.3);
-      backdrop-filter: blur(10px);
-      box-shadow: 0 10px 30px -10px #00000080;
-    }
-
-    /* Center controls */
-    .controls-area {
-      flex: 1.2;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 2rem;
-      background: rgba(20, 25, 45, 0.4);
-      backdrop-filter: blur(16px);
-      border-radius: 60px;
-      padding: 2.5rem 2rem;
-      border: 1px solid rgba(255, 255, 255, 0.05);
-    }
-
-    .now-playing {
-      text-align: center;
-    }
-
-    #track-title {
-      font-size: 2rem;
-      font-weight: 600;
-      margin-bottom: 0.5rem;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
-    }
-
-    #track-artist {
-      font-size: 1.1rem;
-      color: #b1b9d9;
-    }
-
-    /* Progress */
-    .progress-area {
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
-    .progress-bar {
-      width: 100%;
-      height: 8px;
-      background: rgba(255, 255, 255, 0.1);
-      border-radius: 4px;
-      cursor: pointer;
-      position: relative;
-    }
-
-    .progress-fill {
-      height: 100%;
-      width: 0%;
-      background: linear-gradient(90deg, #a678ff, #d2a0ff);
-      border-radius: 4px;
-      box-shadow: 0 0 20px #a678ff;
-      transition: width 0.02s linear;
-    }
-
-    .time-display {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.9rem;
-      color: #b1b9d9;
-    }
-
-    /* Transport buttons */
-    .transport {
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      gap: 1.5rem;
-    }
-
-    .transport-btn {
-      background: rgba(255, 255, 255, 0.05);
-      border: 1px solid rgba(255, 255, 255, 0.1);
-      border-radius: 50%;
+    .ctrl-btn {
+      background: rgba(255,255,255,0.1);
+      border: none;
+      color: white;
       width: 60px;
       height: 60px;
+      border-radius: 50%;
+      font-size: 28px;
+      cursor: pointer;
+      transition: all 0.2s;
       display: flex;
       align-items: center;
       justify-content: center;
-      font-size: 1.8rem;
-      cursor: pointer;
-      transition: all 0.2s;
-      color: #eef2ff;
+      border: 1px solid rgba(255,255,255,0.2);
     }
-
-    .transport-btn:hover {
-      background: rgba(255, 255, 255, 0.15);
-      border-color: #a678ff;
+    .ctrl-btn:hover {
+      background: #a678ff;
       transform: scale(1.1);
-      box-shadow: 0 0 20px #a678ff80;
+      border-color: #a678ff;
     }
-
     #play-pause {
+      background: #4a40bf;
       width: 80px;
       height: 80px;
-      font-size: 2.4rem;
-      background: #4a40bf;
-      border-color: #a88eff;
+      font-size: 36px;
     }
-
-    /* Volume and effects */
-    .extra-controls {
-      display: flex;
-      flex-direction: column;
-      gap: 1rem;
+    #play-pause:hover {
+      background: #6a5aff;
     }
-
-    .volume-row, .effect-row {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-    }
-
-    .volume-row span, .effect-row span {
-      width: 60px;
-      font-size: 0.9rem;
-      color: #b1b9d9;
-    }
-
-    input[type=range] {
-      flex: 1;
-      height: 6px;
-      background: rgba(255,255,255,0.1);
-      border-radius: 3px;
-      -webkit-appearance: none;
-    }
-
-    input[type=range]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: #a678ff;
-      cursor: pointer;
-      box-shadow: 0 0 10px #a678ff;
-    }
-
-    #effect-select {
-      background: rgba(20, 25, 45, 0.8);
-      border: 1px solid rgba(255,255,255,0.1);
+    #environment-select {
+      background: rgba(0,0,0,0.4);
+      border: 1px solid rgba(255,255,255,0.2);
       border-radius: 40px;
-      padding: 0.5rem 1rem;
       color: white;
-      font-size: 0.9rem;
+      padding: 0 20px;
+      font-size: 16px;
       cursor: pointer;
+      outline: none;
+      backdrop-filter: blur(10px);
+      min-width: 150px;
     }
-
-    /* Playlist sidebar */
-    .playlist-area {
-      flex: 0.8;
-      background: rgba(20, 25, 45, 0.4);
-      backdrop-filter: blur(16px);
+    #thoughts-panel {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 40;
+      text-align: center;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 2s;
+      max-width: 600px;
+      width: 80%;
+    }
+    #thoughts-panel.visible {
+      opacity: 1;
+    }
+    #thought-text {
+      font-size: 2rem;
+      font-weight: 300;
+      line-height: 1.5;
+      text-shadow: 0 0 30px rgba(166,120,255,0.5);
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(10px);
+      padding: 40px;
+      border-radius: 80px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    #playlist {
+      position: absolute;
+      right: 30px;
+      top: 100px;
+      z-index: 25;
+      width: 280px;
+      background: rgba(20,25,45,0.7);
+      backdrop-filter: blur(20px);
       border-radius: 40px;
-      padding: 1.5rem 1rem;
-      border: 1px solid rgba(255,255,255,0.05);
+      padding: 20px;
+      border: 1px solid rgba(255,255,255,0.1);
+      max-height: 60vh;
       overflow-y: auto;
     }
-
-    .playlist-area h3 {
-      font-size: 1.2rem;
-      margin-bottom: 1rem;
-      padding-left: 0.5rem;
+    #playlist h3 {
+      margin: 0 0 15px 10px;
+      font-weight: 400;
       color: #b1b9d9;
-      letter-spacing: 1px;
+      letter-spacing: 2px;
     }
-
-    #playlist {
-      list-style: none;
-      display: flex;
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-
     .playlist-item {
-      padding: 0.8rem 1rem;
+      padding: 12px 20px;
+      margin: 5px 0;
       border-radius: 30px;
-      background: rgba(255,255,255,0.02);
-      border: 1px solid rgba(255,255,255,0.03);
+      background: rgba(255,255,255,0.03);
       cursor: pointer;
-      transition: all 0.2s;
+      transition: 0.2s;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      border: 1px solid rgba(255,255,255,0.05);
     }
-
     .playlist-item:hover {
-      background: rgba(255,255,255,0.08);
-      border-color: #a678ff80;
+      background: rgba(255,255,255,0.1);
+      border-color: #a678ff;
     }
-
     .playlist-item.active {
       background: #4a40bf40;
       border-color: #a678ff;
-      box-shadow: 0 0 15px #a678ff40;
     }
-
-    /* Responsive */
-    @media (max-width: 1000px) {
-      .main-area {
-        flex-direction: column;
-        padding: 1rem;
-      }
-      .cover-area { max-width: 100%; }
-      .playlist-area { max-height: 200px; }
+    #track-info {
+      position: absolute;
+      bottom: 140px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 35;
+      text-align: center;
+      background: rgba(0,0,0,0.3);
+      backdrop-filter: blur(10px);
+      padding: 12px 30px;
+      border-radius: 40px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    #track-title {
+      font-size: 1.4rem;
+      margin-bottom: 5px;
+    }
+    #track-artist {
+      font-size: 1rem;
+      color: #b1b9d9;
+    }
+    #volume-control {
+      position: absolute;
+      left: 30px;
+      bottom: 100px;
+      z-index: 30;
+      writing-mode: bt-lr;
+      -webkit-appearance: slider-vertical;
+      width: 20px;
+      height: 150px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 10px;
+    }
+    @media (max-width: 800px) {
+      #controls { flex-wrap: wrap; width: 90%; padding: 15px; bottom: 20px; }
+      #playlist { right: 10px; width: 220px; }
+      #thought-text { font-size: 1.4rem; }
     }
   </style>
 </head>
 <body>
 
-  <canvas id="bg-canvas"></canvas>
-
-  <div class="player-container">
-    <div class="header">
-      <h1>♢ PACKMUSIC</h1>
-      <div class="sub">immersive audio</div>
-    </div>
-
-    <div class="main-area">
-      <!-- Left: cover + visualizer -->
-      <div class="cover-area">
-        <div class="cover-wrapper">
-          <img id="album-art" src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='400' height='400' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%232a2f4a'/%3E%3Ctext x='10' y='55' fill='%23ffffff80' font-size='12'%3EMUSIC%3C/text%3E%3C/svg%3E" alt="album art">
-        </div>
-        <canvas id="visualizer" width="600" height="120"></canvas>
-      </div>
-
-      <!-- Center: controls -->
-      <div class="controls-area">
-        <div class="now-playing">
-          <div id="track-title">Select a song</div>
-          <div id="track-artist">from the playlist</div>
-        </div>
-
-        <div class="progress-area">
-          <div class="progress-bar" id="progress-bar">
-            <div class="progress-fill" id="progress-fill"></div>
-          </div>
-          <div class="time-display">
-            <span id="time-current">0:00</span>
-            <span id="time-duration">0:00</span>
-          </div>
-        </div>
-
-        <div class="transport">
-          <div class="transport-btn" id="prev">⏮</div>
-          <div class="transport-btn" id="play-pause">▶</div>
-          <div class="transport-btn" id="next">⏭</div>
-        </div>
-
-        <div class="extra-controls">
-          <div class="volume-row">
-            <span>Volume</span>
-            <input type="range" id="volume" min="0" max="100" value="80">
-          </div>
-          <div class="effect-row">
-            <span>Reverb</span>
-            <select id="effect-select">
-              <option value="0">None</option>
-              <option value="1" selected>Hall</option>
-              <option value="2">Cave</option>
-              <option value="3">Dream</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      <!-- Right: playlist -->
-      <div class="playlist-area">
-        <h3>PLAYLIST · AUDIO</h3>
-        <ul id="playlist">
-          <li class="playlist-item">Loading...</li>
-        </ul>
-      </div>
-    </div>
+  <div id="info">
+    <h1>♢ PACKMUSIC · MINDSCAPE</h1>
   </div>
 
+  <div id="playlist">
+    <h3>IMMERSIVE PLAYLIST</h3>
+    <ul id="playlist-items" style="list-style: none; padding: 0;"></ul>
+  </div>
+
+  <div id="track-info">
+    <div id="track-title">Select a song</div>
+    <div id="track-artist">from the beyond</div>
+  </div>
+
+  <div id="thoughts-panel">
+    <div id="thought-text">Breathe. Let the music carry you inward.</div>
+  </div>
+
+  <div id="controls">
+    <button class="ctrl-btn" id="prev">⏮</button>
+    <button class="ctrl-btn" id="play-pause">▶</button>
+    <button class="ctrl-btn" id="next">⏭</button>
+    <select id="environment-select">
+      <option value="space">🌌 Space</option>
+      <option value="underwater">🌊 Underwater</option>
+      <option value="forest">🌲 Forest</option>
+      <option value="cathedral">⛪ Cathedral</option>
+      <option value="mindscape" selected>🧠 Mindscape</option>
+    </select>
+  </div>
+
+  <input type="range" id="volume-control" min="0" max="100" value="70" orient="vertical">
+
+  <!-- Three.js container -->
+  <div id="canvas-container" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: 1;"></div>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
     (function() {
+      // ---------- Three.js Setup ----------
+      const scene = new THREE.Scene();
+      scene.background = new THREE.Color(0x0a0c14);
+
+      const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.z = 30;
+
+      const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: false });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setPixelRatio(window.devicePixelRatio);
+      document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+      // Lights
+      const ambientLight = new THREE.AmbientLight(0x404060);
+      scene.add(ambientLight);
+      const pointLight = new THREE.PointLight(0xa678ff, 1, 50);
+      pointLight.position.set(0, 0, 20);
+      scene.add(pointLight);
+
+      // Particle system
+      const particleCount = 4000;
+      const particles = new THREE.BufferGeometry();
+      const positions = new Float32Array(particleCount * 3);
+      const colors = new Float32Array(particleCount * 3);
+      for (let i = 0; i < particleCount; i++) {
+        const r = 20 + Math.random() * 30;
+        const theta = Math.random() * Math.PI * 2;
+        const phi = Math.acos(2 * Math.random() - 1);
+        positions[i*3] = r * Math.sin(phi) * Math.cos(theta);
+        positions[i*3+1] = r * Math.sin(phi) * Math.sin(theta);
+        positions[i*3+2] = r * Math.cos(phi);
+
+        const color = new THREE.Color().setHSL(0.7 + Math.random()*0.2, 0.8, 0.5 + Math.random()*0.3);
+        colors[i*3] = color.r;
+        colors[i*3+1] = color.g;
+        colors[i*3+2] = color.b;
+      }
+      particles.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      particles.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+      const particleMaterial = new THREE.PointsMaterial({ 
+        size: 0.25, 
+        vertexColors: true,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0.8
+      });
+      const particleSystem = new THREE.Points(particles, particleMaterial);
+      scene.add(particleSystem);
+
+      // Central glow
+      const glowGeometry = new THREE.SphereGeometry(1, 32, 32);
+      const glowMaterial = new THREE.MeshBasicMaterial({ color: 0xa678ff, emissive: 0x442288 });
+      const glowSphere = new THREE.Mesh(glowGeometry, glowMaterial);
+      scene.add(glowSphere);
+
+      // Floating orbs (environment indicators)
+      const orbGroup = new THREE.Group();
+      const orbMat = new THREE.MeshStandardMaterial({ color: 0xa678ff, emissive: 0x331166 });
+      for (let i = 0; i < 5; i++) {
+        const orb = new THREE.Mesh(new THREE.SphereGeometry(0.4, 16), orbMat);
+        orb.position.set(Math.sin(i*1.2)*8, Math.cos(i*1.2)*8, Math.sin(i*0.5)*5);
+        orbGroup.add(orb);
+      }
+      scene.add(orbGroup);
+
+      // Mouse interaction
+      let mouseX = 0, mouseY = 0;
+      document.addEventListener('mousemove', (e) => {
+        mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+        mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+      });
+
       // ---------- Web Audio Setup ----------
       const AudioContext = window.AudioContext || window.webkitAudioContext;
       const audioCtx = new AudioContext();
 
-      // Resume on user interaction
+      // Resume on interaction
       document.body.addEventListener('click', () => {
         if (audioCtx.state === 'suspended') audioCtx.resume();
       }, { once: true });
 
       // Audio element
-      const audio = document.getElementById('lobby-music') || (() => {
-        const a = new Audio();
-        a.crossOrigin = 'anonymous';
-        a.id = 'lobby-music';
-        document.body.appendChild(a);
-        return a;
-      })();
-      audio.loop = false; // we'll handle next manually
+      const audio = new Audio();
+      audio.crossOrigin = 'anonymous';
+      audio.loop = false;
 
-      // Create Web Audio graph
+      // Create source and effects
       const source = audioCtx.createMediaElementSource(audio);
       const gainNode = audioCtx.createGain();
       const reverbNode = audioCtx.createConvolver();
       const reverbGain = audioCtx.createGain();
       const dryGain = audioCtx.createGain();
-      dryGain.gain.value = 0.5; // mix
+      dryGain.gain.value = 0.5;
       const wetGain = audioCtx.createGain();
       wetGain.gain.value = 0.5;
 
-      // Simple impulse responses
-      function createImpulse(duration = 2, decay = 2) {
+      // Binaural beat generator (Mindscape)
+      const oscLeft = audioCtx.createOscillator();
+      const oscRight = audioCtx.createOscillator();
+      const gainOsc = audioCtx.createGain();
+      oscLeft.frequency.value = 100;
+      oscRight.frequency.value = 104; // 4 Hz difference
+      oscLeft.type = 'sine';
+      oscRight.type = 'sine';
+      gainOsc.gain.value = 0;
+
+      const merger = audioCtx.createChannelMerger(2);
+      oscLeft.connect(merger, 0, 0);
+      oscRight.connect(merger, 0, 1);
+      merger.connect(gainOsc);
+      gainOsc.connect(audioCtx.destination);
+
+      oscLeft.start();
+      oscRight.start();
+
+      // Connect main graph
+      source.connect(dryGain);
+      dryGain.connect(gainNode);
+      source.connect(reverbNode);
+      reverbNode.connect(wetGain);
+      wetGain.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      // Visualizer analyser
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      const bufferLength = analyser.frequencyBinCount;
+      const dataArray = new Uint8Array(bufferLength);
+      source.connect(analyser);
+
+      // Impulse responses for environments
+      function createImpulse(duration, decay) {
         const sampleRate = audioCtx.sampleRate;
         const length = sampleRate * duration;
         const impulse = audioCtx.createBuffer(2, length, sampleRate);
@@ -445,95 +381,70 @@
         return impulse;
       }
 
-      const impulses = {
-        '1': createImpulse(2.0, 0.8),   // hall
-        '2': createImpulse(3.5, 1.5),   // cave
-        '3': createImpulse(5.0, 2.5)    // dream
+      const envs = {
+        space: { ir: createImpulse(3.0, 0.5), color: 0x331166, bg: 0x0a0c14 },
+        underwater: { ir: createImpulse(1.5, 1.2), color: 0x115566, bg: 0x112233 },
+        forest: { ir: createImpulse(1.2, 0.8), color: 0x226622, bg: 0x1a2a1a },
+        cathedral: { ir: createImpulse(4.0, 2.0), color: 0x884422, bg: 0x2a1a0a },
+        mindscape: { ir: createImpulse(5.0, 2.5), color: 0x551188, bg: 0x1a0a2a }
       };
 
-      // Connect graph
-      source.connect(dryGain);
-      dryGain.connect(gainNode);
-      source.connect(reverbNode);
-      reverbNode.connect(wetGain);
-      wetGain.connect(gainNode);
-      gainNode.connect(audioCtx.destination);
-
-      // Initial reverb off
-      reverbNode.buffer = impulses['1'];
-      wetGain.gain.value = 0;
-
-      // Visualizer analyser
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(bufferLength);
-      source.connect(analyser); // also connect to analyser (before effects)
-
-      // ---------- UI Elements ----------
+      // UI Elements
       const playPauseBtn = document.getElementById('play-pause');
       const prevBtn = document.getElementById('prev');
       const nextBtn = document.getElementById('next');
-      const volumeSlider = document.getElementById('volume');
-      const effectSelect = document.getElementById('effect-select');
+      const envSelect = document.getElementById('environment-select');
+      const volumeSlider = document.getElementById('volume-control');
       const trackTitle = document.getElementById('track-title');
       const trackArtist = document.getElementById('track-artist');
-      const progressFill = document.getElementById('progress-fill');
-      const progressBar = document.getElementById('progress-bar');
-      const timeCurrent = document.getElementById('time-current');
-      const timeDuration = document.getElementById('time-duration');
-      const playlistEl = document.getElementById('playlist');
-      const albumArt = document.getElementById('album-art');
-      const visualizerCanvas = document.getElementById('visualizer');
-      const ctx = visualizerCanvas.getContext('2d');
+      const playlistEl = document.getElementById('playlist-items');
+      const thoughtsPanel = document.getElementById('thoughts-panel');
+      const thoughtText = document.getElementById('thought-text');
 
       // State
       let playlist = [];
       let currentIndex = 0;
       let isPlaying = false;
 
-      // Format time
-      function formatTime(sec) {
-        if (isNaN(sec)) return '0:00';
-        const m = Math.floor(sec / 60);
-        const s = Math.floor(sec % 60);
-        return `${m}:${s < 10 ? '0' : ''}${s}`;
-      }
+      // Thoughts quotes
+      const quotes = [
+        "Breathe. Let the music carry you inward.",
+        "Feel the vibration of every cell.",
+        "You are the universe experiencing itself.",
+        "Thoughts are clouds; let them pass.",
+        "In the silence, you find yourself.",
+        "This moment is all there is.",
+        "Sound is the medicine.",
+        "Drift deeper into your own mind."
+      ];
+      let quoteInterval;
 
-      // Update UI with track info
-      function updateTrackInfo() {
-        if (playlist[currentIndex]) {
-          trackTitle.textContent = playlist[currentIndex].name;
-          trackArtist.textContent = 'PackArcade';
-          // Random "album art" based on track name
-          albumArt.src = `https://via.placeholder.com/500/2a2f4a/a678ff?text=${encodeURIComponent(playlist[currentIndex].name.charAt(0))}`;
+      // Environment change
+      function setEnvironment(envKey) {
+        const env = envs[envKey];
+        reverbNode.buffer = env.ir;
+        wetGain.gain.value = 0.6;
+        dryGain.gain.value = 0.5;
+        scene.background.setHex(env.bg);
+        particleMaterial.color.setHex(env.color);
+        if (envKey === 'mindscape') {
+          gainOsc.gain.value = 0.02; // subtle binaural beat
+          thoughtsPanel.classList.add('visible');
+          // Rotate quotes
+          if (quoteInterval) clearInterval(quoteInterval);
+          quoteInterval = setInterval(() => {
+            thoughtText.textContent = quotes[Math.floor(Math.random() * quotes.length)];
+          }, 8000);
         } else {
-          trackTitle.textContent = 'Select a song';
-          trackArtist.textContent = '';
+          gainOsc.gain.value = 0;
+          thoughtsPanel.classList.remove('visible');
+          if (quoteInterval) clearInterval(quoteInterval);
         }
       }
 
-      // Load and play track
-      function loadTrack(index) {
-        if (index < 0) index = playlist.length - 1;
-        if (index >= playlist.length) index = 0;
-        currentIndex = index;
-        const track = playlist[currentIndex];
-        if (!track) return;
-        audio.src = track.url;
-        audio.load();
-        updateTrackInfo();
-        if (isPlaying) {
-          audio.play().catch(e => console.warn('Play failed', e));
-        }
-        // Highlight playlist item
-        document.querySelectorAll('.playlist-item').forEach((li, i) => {
-          if (i === currentIndex) li.classList.add('active');
-          else li.classList.remove('active');
-        });
-      }
+      envSelect.addEventListener('change', (e) => setEnvironment(e.target.value));
 
-      // Fetch playlist from GitHub
+      // Load playlist from GitHub
       async function loadPlaylist() {
         const apiUrl = 'https://api.github.com/repos/sussybocca/PackArcade/contents/public/audio';
         try {
@@ -545,7 +456,6 @@
             name: f.name.replace(/\.mp3$/i, ''),
             url: `https://raw.githubusercontent.com/sussybocca/PackArcade/main/public/audio/${encodeURIComponent(f.name)}`
           }));
-          // Render playlist
           playlistEl.innerHTML = '';
           playlist.forEach((track, idx) => {
             const li = document.createElement('li');
@@ -554,20 +464,35 @@
             li.addEventListener('click', () => {
               loadTrack(idx);
               if (!isPlaying) {
+                audio.play().catch(e => console.warn(e));
                 playPauseBtn.textContent = '⏸';
                 isPlaying = true;
-                audio.play().catch(e => console.warn(e));
               }
             });
             playlistEl.appendChild(li);
           });
-          if (playlist.length > 0) {
-            loadTrack(0);
-          }
+          if (playlist.length) loadTrack(0);
         } catch (e) {
-          console.error('Failed to load playlist', e);
+          console.error('Playlist error', e);
           playlistEl.innerHTML = '<li class="playlist-item">Error loading songs</li>';
         }
+      }
+
+      function loadTrack(index) {
+        if (index < 0) index = playlist.length - 1;
+        if (index >= playlist.length) index = 0;
+        currentIndex = index;
+        const track = playlist[currentIndex];
+        if (!track) return;
+        audio.src = track.url;
+        audio.load();
+        trackTitle.textContent = track.name;
+        trackArtist.textContent = 'PackArcade';
+        document.querySelectorAll('.playlist-item').forEach((li, i) => {
+          if (i === currentIndex) li.classList.add('active');
+          else li.classList.remove('active');
+        });
+        if (isPlaying) audio.play().catch(e => console.warn(e));
       }
 
       // Play/Pause
@@ -599,39 +524,7 @@
       volumeSlider.addEventListener('input', (e) => {
         gainNode.gain.value = e.target.value / 100;
       });
-      gainNode.gain.value = 0.8;
-
-      // Reverb effect
-      effectSelect.addEventListener('change', (e) => {
-        const val = e.target.value;
-        if (val === '0') {
-          wetGain.gain.value = 0;
-          dryGain.gain.value = 1;
-        } else {
-          reverbNode.buffer = impulses[val];
-          wetGain.gain.value = 0.6;
-          dryGain.gain.value = 0.5;
-        }
-      });
-
-      // Progress bar updates
-      audio.addEventListener('timeupdate', () => {
-        if (audio.duration) {
-          const percent = (audio.currentTime / audio.duration) * 100;
-          progressFill.style.width = percent + '%';
-          timeCurrent.textContent = formatTime(audio.currentTime);
-          timeDuration.textContent = formatTime(audio.duration);
-        }
-      });
-
-      // Seek
-      progressBar.addEventListener('click', (e) => {
-        const rect = progressBar.getBoundingClientRect();
-        const clickX = e.clientX - rect.left;
-        const width = rect.width;
-        const seekTo = (clickX / width) * audio.duration;
-        audio.currentTime = seekTo;
-      });
+      gainNode.gain.value = 0.7;
 
       // Auto next
       audio.addEventListener('ended', () => {
@@ -639,69 +532,41 @@
         if (isPlaying) audio.play().catch(e => console.warn(e));
       });
 
-      // Visualizer
-      function draw() {
-        requestAnimationFrame(draw);
-        if (!analyser) return;
-        analyser.getByteFrequencyData(dataArray);
-        ctx.clearRect(0, 0, visualizerCanvas.width, visualizerCanvas.height);
-        const barWidth = (visualizerCanvas.width / bufferLength) * 2.5;
-        let x = 0;
-        for (let i = 0; i < bufferLength; i++) {
-          const barHeight = dataArray[i] / 2;
-          ctx.fillStyle = `rgb(${100 + dataArray[i]}, 120, 255)`;
-          ctx.fillRect(x, visualizerCanvas.height - barHeight, barWidth, barHeight);
-          x += barWidth + 1;
+      // Animation loop
+      function animate() {
+        requestAnimationFrame(animate);
+
+        // Rotate particles slowly
+        particleSystem.rotation.y += 0.0002;
+        particleSystem.rotation.x += 0.0001;
+
+        // Move camera slightly with mouse
+        camera.position.x += (mouseX * 10 - camera.position.x) * 0.02;
+        camera.position.y += (mouseY * 5 - camera.position.y) * 0.02;
+        camera.lookAt(0, 0, 0);
+
+        // Pulse central sphere with audio
+        if (analyser) {
+          analyser.getByteFrequencyData(dataArray);
+          const avg = dataArray.reduce((a, b) => a + b, 0) / bufferLength;
+          const scale = 1 + avg / 200;
+          glowSphere.scale.set(scale, scale, scale);
         }
-      }
-      draw();
 
-      // Background canvas animation (particles)
-      const bgCanvas = document.getElementById('bg-canvas');
-      const bgCtx = bgCanvas.getContext('2d');
-      let width, height;
-      function resizeBg() {
-        width = window.innerWidth;
-        height = window.innerHeight;
-        bgCanvas.width = width;
-        bgCanvas.height = height;
+        renderer.render(scene, camera);
       }
-      window.addEventListener('resize', resizeBg);
-      resizeBg();
+      animate();
 
-      const particles = [];
-      for (let i = 0; i < 80; i++) {
-        particles.push({
-          x: Math.random() * width,
-          y: Math.random() * height,
-          vx: (Math.random() - 0.5) * 0.4,
-          vy: (Math.random() - 0.5) * 0.2,
-          radius: Math.random() * 2 + 1,
-        });
-      }
+      // Handle resize
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
 
-      function drawBg() {
-        requestAnimationFrame(drawBg);
-        bgCtx.clearRect(0, 0, width, height);
-        bgCtx.fillStyle = '#0a0c14';
-        bgCtx.fillRect(0, 0, width, height);
-        bgCtx.globalAlpha = 0.6;
-        for (let p of particles) {
-          p.x += p.vx;
-          p.y += p.vy;
-          if (p.x < 0 || p.x > width) p.vx *= -1;
-          if (p.y < 0 || p.y > height) p.vy *= -1;
-          bgCtx.beginPath();
-          bgCtx.arc(p.x, p.y, p.radius, 0, Math.PI * 2);
-          bgCtx.fillStyle = `rgba(166, 120, 255, ${0.3 + Math.sin(Date.now() * 0.001 + p.x) * 0.1})`;
-          bgCtx.fill();
-        }
-        bgCtx.globalAlpha = 1;
-      }
-      drawBg();
-
-      // Initialize
+      // Start
       loadPlaylist();
+      setEnvironment('mindscape'); // default
     })();
   </script>
 </body>
